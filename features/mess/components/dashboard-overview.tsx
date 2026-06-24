@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, CreditCard, ReceiptText, Scale, TrendingUp, Users, Utensils } from "lucide-react";
+import { Activity, CreditCard, ReceiptText, Scale, TrendingUp, UserRound, Users, Utensils } from "lucide-react";
 import Link from "next/link";
 import {
   Bar,
@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { DashboardData } from "@/services/mess/queries";
 
 function StatCard({
@@ -50,6 +50,18 @@ function StatCard({
       </CardContent>
     </Card>
   );
+}
+
+function balanceClass(value: number) {
+  if (value > 0) {
+    return "text-emerald-400";
+  }
+
+  if (value < 0) {
+    return "text-red-400";
+  }
+
+  return "text-muted-foreground";
 }
 
 export function DashboardOverview({ data }: { data: DashboardData }) {
@@ -103,6 +115,48 @@ export function DashboardOverview({ data }: { data: DashboardData }) {
           action="Open reports"
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserRound className="size-5 text-primary" />
+            Manager Personal Summary
+          </CardTitle>
+          <CardDescription>Your own meals, deposits, meal cost, and balance as a mess member.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.personalSummary ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-sm text-muted-foreground">My Meals</p>
+                <p className="mt-2 text-2xl font-semibold">{data.personalSummary.totalMeals}</p>
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-sm text-muted-foreground">My Deposit</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {formatCurrency(data.personalSummary.totalDeposit)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-sm text-muted-foreground">My Meal Cost</p>
+                <p className="mt-2 text-2xl font-semibold">
+                  {formatCurrency(data.personalSummary.mealCost)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <p className="text-sm text-muted-foreground">My Balance</p>
+                <p className={cn("mt-2 text-2xl font-semibold", balanceClass(data.personalSummary.balance))}>
+                  {formatCurrency(data.personalSummary.balance)}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Your manager account is not linked to a member record yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Card>

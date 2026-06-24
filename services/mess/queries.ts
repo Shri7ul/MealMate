@@ -55,6 +55,7 @@ export interface MessTotals {
 }
 
 export interface DashboardData extends MessTotals {
+  personalSummary: PersonalBalanceSummary | null;
   todaysMeals: number;
   todaysDeposit: number;
   todaysExpense: number;
@@ -71,6 +72,18 @@ export interface DashboardData extends MessTotals {
     expenses: number;
     deposits: number;
   }>;
+}
+
+export interface PersonalBalanceSummary {
+  memberId: string | null;
+  totalMeals: number;
+  mealRate: number;
+  totalDeposit: number;
+  mealCost: number;
+  balance: number;
+  recentMeals: MealWithMember[];
+  recentDeposits: DepositWithMember[];
+  recentExpenses: ExpenseWithCreator[];
 }
 
 export async function getAccessibleMessId(userId: string, role: "manager" | "member") {
@@ -359,6 +372,45 @@ export async function getMessTotals(messId: string): Promise<MessTotals> {
   return calculateMessTotals({ members, meals, deposits, expenses });
 }
 
+export async function getPersonalBalanceSummary(
+  messId: string,
+  userId: string
+): Promise<PersonalBalanceSummary | null> {
+  const [members, meals, deposits, expenses] = await Promise.all([
+    getMessMembers(messId),
+    getMealEntriesForMess(messId),
+    getDepositsForMess(messId),
+    getExpensesForMess(messId)
+  ]);
+  const totals = calculateMessTotals({ members, meals, deposits, expenses });
+  const member = members.find((item) => item.user_id === userId);
+
+  if (!member) {
+    return null;
+  }
+
+  const memberMeals = meals.filter((meal) => meal.member_id === member.id);
+  const memberDeposits = deposits.filter((deposit) => deposit.member_id === member.id);
+  const totalMeals = memberMeals.reduce(
+    (total, meal) => total + Number(meal.breakfast) + Number(meal.lunch) + Number(meal.dinner),
+    0
+  );
+  const totalDeposit = memberDeposits.reduce((total, deposit) => total + Number(deposit.amount), 0);
+  const mealCost = totalMeals * totals.mealRate;
+
+  return {
+    memberId: member.id,
+    totalMeals,
+    mealRate: totals.mealRate,
+    totalDeposit,
+    mealCost,
+    balance: totalDeposit - mealCost,
+    recentMeals: memberMeals.slice(0, 5),
+    recentDeposits: memberDeposits.slice(0, 5),
+    recentExpenses: expenses.slice(0, 5)
+  };
+}
+
 function isSameDay(value: string, date: string) {
   return value.slice(0, 10) === date;
 }
@@ -376,7 +428,7 @@ function getDateRange(days: number) {
   return dates;
 }
 
-export async function getDashboardData(messId: string): Promise<DashboardData> {
+export async function getDashboardData(messId: string, userId: string): Promise<DashboardData> {
   const [members, meals, deposits, expenses] = await Promise.all([
     getMessMembers(messId),
     getMealEntriesForMess(messId),
@@ -384,6 +436,18 @@ export async function getDashboardData(messId: string): Promise<DashboardData> {
     getExpensesForMess(messId)
   ]);
   const totals = calculateMessTotals({ members, meals, deposits, expenses });
+  const member = members.find((item) => item.user_id === userId);
+  const memberMeals = member ? meals.filter((meal) => meal.member_id === member.id) : [];
+  const memberDeposits = member ? deposits.filter((deposit) => deposit.member_id === member.id) : [];
+  const personalTotalMeals = memberMeals.reduce(
+    (total, meal) => total + Number(meal.breakfast) + Number(meal.lunch) + Number(meal.dinner),
+    0
+  );
+  const personalTotalDeposit = memberDeposits.reduce(
+    (total, deposit) => total + Number(deposit.amount),
+    0
+  );
+  const personalMealCost = personalTotalMeals * totals.mealRate;
   const today = new Date().toISOString().slice(0, 10);
 
   const dailySeries = getDateRange(7).map((date) => ({
@@ -437,6 +501,19 @@ export async function getDashboardData(messId: string): Promise<DashboardData> {
 
   return {
     ...totals,
+    personalSummary: member
+      ? {
+          memberId: member.id,
+          totalMeals: personalTotalMeals,
+          mealRate: totals.mealRate,
+          totalDeposit: personalTotalDeposit,
+          mealCost: personalMealCost,
+          balance: personalTotalDeposit - personalMealCost,
+          recentMeals: memberMeals.slice(0, 5),
+          recentDeposits: memberDeposits.slice(0, 5),
+          recentExpenses: expenses.slice(0, 5)
+        }
+      : null,
     todaysMeals: dailySeries[dailySeries.length - 1]?.meals ?? 0,
     todaysDeposit: deposits
       .filter((deposit) => isSameDay(deposit.created_at, today))

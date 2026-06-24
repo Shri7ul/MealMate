@@ -17,7 +17,7 @@ export default async function ManagerDashboardPage() {
     redirect("/onboarding");
   }
 
-  const dashboardData = await getDashboardData(mess.id);
+  const dashboardData = await getDashboardData(mess.id, profile.id);
 
   return (
     <FadeIn>
