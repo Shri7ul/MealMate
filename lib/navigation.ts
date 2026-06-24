@@ -82,7 +82,15 @@ export const appNavigation: NavItem[] = [
 ];
 
 export function getNavigationForRole(role: AppRole) {
-  return appNavigation.filter((item) => item.roles.includes(role));
+  return appNavigation
+    .filter((item) => item.roles.includes(role))
+    .map((item) => ({
+      ...item,
+      href:
+        role === "manager" && item.href !== "/manager/dashboard"
+          ? `/manager${item.href}`
+          : item.href
+    }));
 }
 
 export function getDashboardPath(role: AppRole) {

@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
-import { DashboardOverview } from "@/features/mess/components/dashboard-overview";
+import { MemberManagement } from "@/features/mess/components/member-management";
 import { getManagerMess, requireRole } from "@/services/auth/get-session-profile";
-import { getDashboardData } from "@/services/mess/queries";
+import { getMessMemberSummaries } from "@/services/mess/queries";
 
 export const metadata = {
-  title: "Manager Dashboard"
+  title: "Members"
 };
 
-export default async function ManagerDashboardPage() {
+export default async function ManagerMembersPage() {
   const { profile } = await requireRole("manager");
   const mess = await getManagerMess(profile.id);
 
@@ -17,15 +17,15 @@ export default async function ManagerDashboardPage() {
     redirect("/onboarding");
   }
 
-  const dashboardData = await getDashboardData(mess.id);
+  const members = await getMessMemberSummaries(mess.id);
 
   return (
     <FadeIn>
       <PageHeader
-        title="Manager Dashboard"
-        description={`${mess.name} live mess summary from Supabase records.`}
+        title="Members"
+        description={`Manage member records, balances, and contact details for ${mess.name}.`}
       />
-      <DashboardOverview data={dashboardData} />
+      <MemberManagement members={members} />
     </FadeIn>
   );
 }

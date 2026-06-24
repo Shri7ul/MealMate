@@ -1,9 +1,10 @@
-import { Utensils } from "lucide-react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
-import { SummaryCard } from "@/components/common/summary-card";
+import { EmptyState } from "@/components/common/empty-state";
+import { MealManagement } from "@/features/mess/components/meal-management";
 import { requireSessionProfile } from "@/services/auth/get-session-profile";
-import { countMealsForMess, getAccessibleMess } from "@/services/mess/queries";
+import { getAccessibleMess, getMealEntriesForMess, getMessMembers } from "@/services/mess/queries";
 
 export const metadata = {
   title: "Meals"
@@ -11,8 +12,15 @@ export const metadata = {
 
 export default async function MealsPage() {
   const { profile } = await requireSessionProfile();
+
+  if (profile.role === "manager") {
+    redirect("/manager/meals");
+  }
+
   const mess = await getAccessibleMess(profile.id, profile.role);
-  const mealCount = mess ? await countMealsForMess(mess.id) : 0;
+  const [members, meals] = mess
+    ? await Promise.all([getMessMembers(mess.id), getMealEntriesForMess(mess.id)])
+    : [[], []];
 
   return (
     <FadeIn>
@@ -24,14 +32,14 @@ export default async function MealsPage() {
             : "No mess is connected to this account yet."
         }
       />
-      <SummaryCard
-        title="Meal entries"
-        description="Records are read from the meal_entries table through Supabase RLS."
-        icon={Utensils}
-      >
-        <p className="text-3xl font-semibold">{mealCount}</p>
-        <p className="mt-2 text-sm text-muted-foreground">Visible meal records</p>
-      </SummaryCard>
+      {mess ? (
+        <MealManagement members={members} meals={meals} readOnly />
+      ) : (
+        <EmptyState
+          title="No mess connected"
+          description="You will see meal records after a manager adds you to a mess."
+        />
+      )}
     </FadeIn>
   );
 }

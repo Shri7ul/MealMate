@@ -15,6 +15,38 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if exists (select 1 from pg_type where typname = 'expense_category') then
+    if not exists (
+      select 1
+      from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      where t.typname = 'expense_category' and e.enumlabel = 'gas'
+    ) then
+      alter type public.expense_category add value 'gas';
+    end if;
+
+    if not exists (
+      select 1
+      from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      where t.typname = 'expense_category' and e.enumlabel = 'electricity'
+    ) then
+      alter type public.expense_category add value 'electricity';
+    end if;
+
+    if not exists (
+      select 1
+      from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      where t.typname = 'expense_category' and e.enumlabel = 'internet'
+    ) then
+      alter type public.expense_category add value 'internet';
+    end if;
+  end if;
+end $$;
+
 create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null check (char_length(trim(name)) >= 2),
@@ -68,8 +100,11 @@ create table if not exists public.expenses (
   title text not null check (char_length(trim(title)) >= 2),
   amount numeric(12,2) not null check (amount > 0),
   created_by uuid not null references public.users(id) on delete restrict,
-  expense_date date not null default current_date
+  expense_date date not null default current_date,
+  note text
 );
+
+alter table public.expenses add column if not exists note text;
 
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
@@ -221,6 +256,9 @@ as $$
   )
 $$;
 
+drop function if exists public.add_member_by_email(text);
+drop function if exists public.update_managed_member_profile(uuid, text, text, text);
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -246,6 +284,12 @@ begin
     insert into public.messes (name, manager_id)
     values (new.raw_user_meta_data ->> 'mess_name', new.id)
     on conflict (manager_id) do nothing;
+
+    insert into public.members (mess_id, user_id)
+    select id, new.id
+    from public.messes
+    where manager_id = new.id
+    on conflict (user_id) do nothing;
   end if;
 
   return new;
@@ -256,6 +300,31 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
+
+create or replace function public.ensure_manager_membership()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.members (mess_id, user_id)
+  values (new.id, new.manager_id)
+  on conflict (user_id) do nothing;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_mess_created_ensure_manager_membership on public.messes;
+create trigger on_mess_created_ensure_manager_membership
+after insert on public.messes
+for each row execute function public.ensure_manager_membership();
+
+insert into public.members (mess_id, user_id)
+select id, manager_id
+from public.messes
+on conflict (user_id) do nothing;
 
 drop policy if exists "Users can view own profile" on public.users;
 create policy "Users can view own profile"
@@ -268,6 +337,8 @@ create policy "Mess peers can view user profile"
 on public.users for select
 to authenticated
 using (
+  public.is_manager()
+  or
   exists (
     select 1
     from public.members viewer
@@ -290,6 +361,29 @@ on public.users for update
 to authenticated
 using (id = auth.uid())
 with check (id = auth.uid() and role = public.current_user_role());
+
+drop policy if exists "Managers can update managed member profiles" on public.users;
+create policy "Managers can update managed member profiles"
+on public.users for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.members mb
+    join public.messes m on m.id = mb.mess_id
+    where mb.user_id = users.id
+      and m.manager_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.members mb
+    join public.messes m on m.id = mb.mess_id
+    where mb.user_id = users.id
+      and m.manager_id = auth.uid()
+  )
+);
 
 drop policy if exists "Managers can view managed mess" on public.messes;
 create policy "Managers can view managed mess"
@@ -339,7 +433,7 @@ drop policy if exists "Managers can remove members" on public.members;
 create policy "Managers can remove members"
 on public.members for delete
 to authenticated
-using (public.is_mess_manager(mess_id));
+using (public.is_mess_manager(mess_id) and user_id <> auth.uid());
 
 drop policy if exists "Mess users can view meals" on public.meal_entries;
 create policy "Mess users can view meals"

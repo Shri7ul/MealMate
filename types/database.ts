@@ -7,7 +7,14 @@ export type Json =
   | Json[];
 
 export type AppRole = "manager" | "member";
-export type ExpenseCategory = "bazaar" | "utilities" | "rent" | "other";
+export type ExpenseCategory =
+  | "bazaar"
+  | "gas"
+  | "electricity"
+  | "internet"
+  | "rent"
+  | "utilities"
+  | "other";
 export type PaymentMethod = "cash" | "bkash" | "nagad" | "bank" | "other";
 
 export interface Database {
@@ -41,6 +48,7 @@ export interface Database {
           role?: AppRole;
           created_at?: string;
         };
+        Relationships: [];
       };
       messes: {
         Row: {
@@ -61,6 +69,15 @@ export interface Database {
           manager_id?: string;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "messes_manager_id_fkey";
+            columns: ["manager_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       members: {
         Row: {
@@ -81,6 +98,22 @@ export interface Database {
           user_id?: string;
           joined_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "members_mess_id_fkey";
+            columns: ["mess_id"];
+            isOneToOne: false;
+            referencedRelation: "messes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       meal_entries: {
         Row: {
@@ -107,6 +140,15 @@ export interface Database {
           lunch?: number;
           dinner?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "meal_entries_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       deposits: {
         Row: {
@@ -133,6 +175,15 @@ export interface Database {
           note?: string | null;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "deposits_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       expenses: {
         Row: {
@@ -143,6 +194,7 @@ export interface Database {
           amount: number;
           created_by: string;
           expense_date: string;
+          note: string | null;
         };
         Insert: {
           id?: string;
@@ -152,6 +204,7 @@ export interface Database {
           amount: number;
           created_by: string;
           expense_date?: string;
+          note?: string | null;
         };
         Update: {
           id?: string;
@@ -161,7 +214,24 @@ export interface Database {
           amount?: number;
           created_by?: string;
           expense_date?: string;
+          note?: string | null;
         };
+        Relationships: [
+          {
+            foreignKeyName: "expenses_mess_id_fkey";
+            columns: ["mess_id"];
+            isOneToOne: false;
+            referencedRelation: "messes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "expenses_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       notifications: {
         Row: {
@@ -188,6 +258,15 @@ export interface Database {
           is_read?: boolean;
           created_at?: string;
         };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       monthly_reports: {
         Row: {
@@ -217,6 +296,15 @@ export interface Database {
           meal_rate?: number;
           total_expense?: number;
         };
+        Relationships: [
+          {
+            foreignKeyName: "monthly_reports_mess_id_fkey";
+            columns: ["mess_id"];
+            isOneToOne: false;
+            referencedRelation: "messes";
+            referencedColumns: ["id"];
+          }
+        ];
       };
     };
     Views: Record<string, never>;

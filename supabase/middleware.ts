@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getDashboardPath } from "@/lib/navigation";
 import { getSupabaseEnv } from "@/lib/env";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { CookieOptions } from "@supabase/ssr";
 import type { AppRole, Database } from "@/types/database";
 
 const protectedPrefixes = [
@@ -45,7 +46,7 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({
           request
@@ -55,7 +56,7 @@ export async function updateSession(request: NextRequest) {
         });
       }
     }
-  });
+  }) as unknown as SupabaseClient<Database>;
 
   const {
     data: { user }

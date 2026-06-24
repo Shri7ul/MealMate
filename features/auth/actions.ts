@@ -80,13 +80,22 @@ export async function upsertMessAction(values: MessValues): Promise<ActionResult
   }
 
   const query = existingMess
-    ? supabase.from("messes").update({ name: parsed.data.name }).eq("id", existingMess.id)
-    : supabase.from("messes").insert({
-        name: parsed.data.name,
-        manager_id: sessionProfile.profile.id
-      });
+    ? supabase
+        .from("messes")
+        .update({ name: parsed.data.name })
+        .eq("id", existingMess.id)
+        .select("id")
+        .single()
+    : supabase
+        .from("messes")
+        .insert({
+          name: parsed.data.name,
+          manager_id: sessionProfile.profile.id
+        })
+        .select("id")
+        .single();
 
-  const { error } = await query;
+  const { data: mess, error } = await query;
 
   if (error) {
     return {
@@ -95,7 +104,26 @@ export async function upsertMessAction(values: MessValues): Promise<ActionResult
     };
   }
 
+  const { error: memberError } = await supabase.from("members").upsert(
+    {
+      mess_id: mess.id,
+      user_id: sessionProfile.profile.id
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (memberError) {
+    return {
+      success: false,
+      message: memberError.message
+    };
+  }
+
   revalidatePath("/manager/dashboard");
+  revalidatePath("/manager/members");
+  revalidatePath("/manager/meals");
+  revalidatePath("/manager/deposits");
+  revalidatePath("/manager/reports");
   revalidatePath("/settings");
   revalidatePath("/onboarding");
 

@@ -1,9 +1,10 @@
-import { ReceiptText } from "lucide-react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
-import { SummaryCard } from "@/components/common/summary-card";
+import { EmptyState } from "@/components/common/empty-state";
+import { ExpenseManagement } from "@/features/mess/components/expense-management";
 import { requireSessionProfile } from "@/services/auth/get-session-profile";
-import { countExpensesForMess, getAccessibleMess } from "@/services/mess/queries";
+import { getAccessibleMess, getExpensesForMess } from "@/services/mess/queries";
 
 export const metadata = {
   title: "Expenses"
@@ -11,8 +12,13 @@ export const metadata = {
 
 export default async function ExpensesPage() {
   const { profile } = await requireSessionProfile();
+
+  if (profile.role === "manager") {
+    redirect("/manager/expenses");
+  }
+
   const mess = await getAccessibleMess(profile.id, profile.role);
-  const expenseCount = mess ? await countExpensesForMess(mess.id) : 0;
+  const expenses = mess ? await getExpensesForMess(mess.id) : [];
 
   return (
     <FadeIn>
@@ -20,14 +26,14 @@ export default async function ExpensesPage() {
         title="Expenses"
         description={mess ? `Expense records for ${mess.name}.` : "No mess is connected to this account yet."}
       />
-      <SummaryCard
-        title="Expense records"
-        description="Records are read from the expenses table through Supabase RLS."
-        icon={ReceiptText}
-      >
-        <p className="text-3xl font-semibold">{expenseCount}</p>
-        <p className="mt-2 text-sm text-muted-foreground">Visible expense records</p>
-      </SummaryCard>
+      {mess ? (
+        <ExpenseManagement expenses={expenses} readOnly />
+      ) : (
+        <EmptyState
+          title="No mess connected"
+          description="You will see expenses after a manager adds you to a mess."
+        />
+      )}
     </FadeIn>
   );
 }

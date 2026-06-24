@@ -1,9 +1,10 @@
-import { CreditCard } from "lucide-react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
-import { SummaryCard } from "@/components/common/summary-card";
+import { EmptyState } from "@/components/common/empty-state";
+import { DepositManagement } from "@/features/mess/components/deposit-management";
 import { requireSessionProfile } from "@/services/auth/get-session-profile";
-import { countDepositsForMess, getAccessibleMess } from "@/services/mess/queries";
+import { getAccessibleMess, getDepositsForMess, getMessMembers } from "@/services/mess/queries";
 
 export const metadata = {
   title: "Deposits"
@@ -11,8 +12,15 @@ export const metadata = {
 
 export default async function DepositsPage() {
   const { profile } = await requireSessionProfile();
+
+  if (profile.role === "manager") {
+    redirect("/manager/deposits");
+  }
+
   const mess = await getAccessibleMess(profile.id, profile.role);
-  const depositCount = mess ? await countDepositsForMess(mess.id) : 0;
+  const [members, deposits] = mess
+    ? await Promise.all([getMessMembers(mess.id), getDepositsForMess(mess.id)])
+    : [[], []];
 
   return (
     <FadeIn>
@@ -20,14 +28,14 @@ export default async function DepositsPage() {
         title="Deposits"
         description={mess ? `Deposit records for ${mess.name}.` : "No mess is connected to this account yet."}
       />
-      <SummaryCard
-        title="Deposit records"
-        description="Records are read from the deposits table through Supabase RLS."
-        icon={CreditCard}
-      >
-        <p className="text-3xl font-semibold">{depositCount}</p>
-        <p className="mt-2 text-sm text-muted-foreground">Visible deposit records</p>
-      </SummaryCard>
+      {mess ? (
+        <DepositManagement members={members} deposits={deposits} readOnly />
+      ) : (
+        <EmptyState
+          title="No mess connected"
+          description="You will see deposits after a manager adds you to a mess."
+        />
+      )}
     </FadeIn>
   );
 }

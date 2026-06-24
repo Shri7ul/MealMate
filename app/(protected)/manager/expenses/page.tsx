@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { FadeIn } from "@/components/motion/fade-in";
-import { DashboardOverview } from "@/features/mess/components/dashboard-overview";
+import { ExpenseManagement } from "@/features/mess/components/expense-management";
 import { getManagerMess, requireRole } from "@/services/auth/get-session-profile";
-import { getDashboardData } from "@/services/mess/queries";
+import { getExpensesForMess } from "@/services/mess/queries";
 
 export const metadata = {
-  title: "Manager Dashboard"
+  title: "Expenses"
 };
 
-export default async function ManagerDashboardPage() {
+export default async function ManagerExpensesPage() {
   const { profile } = await requireRole("manager");
   const mess = await getManagerMess(profile.id);
 
@@ -17,15 +17,15 @@ export default async function ManagerDashboardPage() {
     redirect("/onboarding");
   }
 
-  const dashboardData = await getDashboardData(mess.id);
+  const expenses = await getExpensesForMess(mess.id);
 
   return (
     <FadeIn>
       <PageHeader
-        title="Manager Dashboard"
-        description={`${mess.name} live mess summary from Supabase records.`}
+        title="Expenses"
+        description={`Manage bazaar, gas, electricity, internet, rent, and other expenses for ${mess.name}.`}
       />
-      <DashboardOverview data={dashboardData} />
+      <ExpenseManagement expenses={expenses} />
     </FadeIn>
   );
 }

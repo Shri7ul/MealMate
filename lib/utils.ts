@@ -21,3 +21,21 @@ export function getInitials(name: string) {
     .map((part) => part[0]?.toUpperCase())
     .join("");
 }
+
+export function formatDate(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  return new Intl.DateTimeFormat("en-BD", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
+
+export function toDateInputValue(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function sum(values: number[]) {
+  return values.reduce((total, value) => total + value, 0);
+}
