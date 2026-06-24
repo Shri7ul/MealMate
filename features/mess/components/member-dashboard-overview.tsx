@@ -73,31 +73,33 @@ export function MemberDashboardOverview({ summary }: { summary: PersonalBalanceS
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <SummaryCard
-          title="My Meals"
+          title="Total Meals"
           description="Your breakfast, lunch, and dinner count"
           value={summary.totalMeals}
           icon={Utensils}
         />
         <SummaryCard
           title="Meal Rate"
-          description="Total expense divided by meals"
-          value={formatCurrency(summary.mealRate)}
+          description="Current cost per meal"
+          value={`BDT ${summary.mealRate.toLocaleString("en-BD", {
+            maximumFractionDigits: 0
+          })} / meal`}
           icon={TrendingUp}
         />
         <SummaryCard
-          title="My Deposit"
+          title="Total Deposit"
           description="Your recorded deposits"
           value={formatCurrency(summary.totalDeposit)}
           icon={CreditCard}
         />
         <SummaryCard
-          title="My Meal Cost"
+          title="Meal Cost"
           description="My meals x meal rate"
           value={formatCurrency(summary.mealCost)}
           icon={WalletCards}
         />
         <SummaryCard
-          title="My Balance"
+          title="Current Balance"
           description="My deposit minus meal cost"
           value={formatCurrency(summary.balance)}
           icon={Scale}

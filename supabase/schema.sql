@@ -256,6 +256,33 @@ as $$
   )
 $$;
 
+create or replace function public.get_mess_meal_rate(target_mess_id uuid)
+returns numeric
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with meal_totals as (
+    select coalesce(sum(me.breakfast + me.lunch + me.dinner), 0) as total_meals
+    from public.meal_entries me
+    join public.members mb on mb.id = me.member_id
+    where mb.mess_id = target_mess_id
+  ),
+  expense_totals as (
+    select coalesce(sum(amount), 0) as total_expense
+    from public.expenses
+    where mess_id = target_mess_id
+  )
+  select
+    case
+      when not public.can_access_mess(target_mess_id) then 0
+      when meal_totals.total_meals = 0 then 0
+      else expense_totals.total_expense / meal_totals.total_meals
+    end
+  from meal_totals, expense_totals
+$$;
+
 drop function if exists public.add_member_by_email(text);
 drop function if exists public.update_managed_member_profile(uuid, text, text, text);
 
@@ -439,7 +466,14 @@ drop policy if exists "Mess users can view meals" on public.meal_entries;
 create policy "Mess users can view meals"
 on public.meal_entries for select
 to authenticated
-using (public.can_access_member(member_id));
+using (
+  exists (
+    select 1
+    from public.members target_member
+    where target_member.id = meal_entries.member_id
+      and public.can_access_mess(target_member.mess_id)
+  )
+);
 
 drop policy if exists "Managers can create meals" on public.meal_entries;
 create policy "Managers can create meals"
@@ -570,6 +604,7 @@ grant execute on function public.can_access_mess(uuid) to authenticated;
 grant execute on function public.is_mess_manager(uuid) to authenticated;
 grant execute on function public.can_access_member(uuid) to authenticated;
 grant execute on function public.can_manage_member(uuid) to authenticated;
+grant execute on function public.get_mess_meal_rate(uuid) to authenticated;
 
 do $$
 begin

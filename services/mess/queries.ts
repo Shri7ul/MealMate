@@ -376,19 +376,28 @@ export async function getPersonalBalanceSummary(
   messId: string,
   userId: string
 ): Promise<PersonalBalanceSummary | null> {
-  const [members, meals, deposits, expenses] = await Promise.all([
+  const [members, meals, expenses, deposits] = await Promise.all([
     getMessMembers(messId),
     getMealEntriesForMess(messId),
-    getDepositsForMess(messId),
-    getExpensesForMess(messId)
+    getExpensesForMess(messId),
+    getDepositsForMess(messId)
   ]);
-  const totals = calculateMessTotals({ members, meals, deposits, expenses });
   const member = members.find((item) => item.user_id === userId);
 
   if (!member) {
     return null;
   }
 
+  const supabase = await createClient();
+  const { data: globalMealRate, error: mealRateError } = await supabase.rpc("get_mess_meal_rate", {
+    target_mess_id: messId
+  });
+
+  if (mealRateError) {
+    throw new Error(mealRateError.message);
+  }
+
+  const mealRate = Number(globalMealRate ?? 0);
   const memberMeals = meals.filter((meal) => meal.member_id === member.id);
   const memberDeposits = deposits.filter((deposit) => deposit.member_id === member.id);
   const totalMeals = memberMeals.reduce(
@@ -396,12 +405,12 @@ export async function getPersonalBalanceSummary(
     0
   );
   const totalDeposit = memberDeposits.reduce((total, deposit) => total + Number(deposit.amount), 0);
-  const mealCost = totalMeals * totals.mealRate;
+  const mealCost = totalMeals * mealRate;
 
   return {
     memberId: member.id,
     totalMeals,
-    mealRate: totals.mealRate,
+    mealRate,
     totalDeposit,
     mealCost,
     balance: totalDeposit - mealCost,

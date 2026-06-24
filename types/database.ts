@@ -341,6 +341,10 @@ export interface Database {
         Args: { target_member_id: string };
         Returns: boolean;
       };
+      get_mess_meal_rate: {
+        Args: { target_mess_id: string };
+        Returns: number;
+      };
     };
     Enums: {
       app_role: AppRole;

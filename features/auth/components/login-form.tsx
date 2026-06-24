@@ -36,17 +36,27 @@ export function LoginForm() {
   function onSubmit(values: LoginValues) {
     setError(null);
     startTransition(async () => {
-      const { error: signInError } = await supabase.auth.signInWithPassword(values);
+      const {
+        data: { user },
+        error: signInError
+      } = await supabase.auth.signInWithPassword(values);
 
       if (signInError) {
         setError(signInError.message);
         return;
       }
 
+      if (!user) {
+        setError("Signed in user could not be loaded.");
+        await supabase.auth.signOut();
+        return;
+      }
+
       const { data: profile, error: profileError } = await supabase
         .from("users")
         .select("role")
-        .single();
+        .eq("id", user.id)
+        .maybeSingle();
 
       if (profileError || !profile) {
         setError(profileError?.message ?? "Profile could not be loaded.");
